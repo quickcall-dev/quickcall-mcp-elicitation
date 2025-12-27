@@ -79,7 +79,7 @@ flowchart LR
 ### Elicitation Flow
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'actorBkg': '#f5f5f5', 'actorBorder': '#e0e0e0' }}}%%
+%%{init: {'theme': 'base', 'themeVariables': { 'actorBkg': '#f5f5f5', 'actorBorder': '#e0e0e0', 'noteBkgColor': '#4a4a4a', 'noteTextColor': '#ffffff', 'noteBorderColor': '#4a4a4a' }}}%%
 sequenceDiagram
     box rgb(240, 253, 244) MCP Elicitation
         participant User
