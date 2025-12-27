@@ -262,7 +262,20 @@ class MCPClient:
         try:
             async with self._get_client(elicitation_handler=handler) as client:
                 result = await client.call_tool(name=tool_name, arguments=arguments)
+                logger.info(f"Tool result type: {type(result)}")
 
+                # Handle CallToolResult object
+                if hasattr(result, "structured_content") and result.structured_content:
+                    return result.structured_content
+                if hasattr(result, "content") and result.content:
+                    # content is a list of TextContent objects
+                    for item in result.content:
+                        if hasattr(item, "text"):
+                            try:
+                                return json.loads(item.text)
+                            except json.JSONDecodeError:
+                                pass
+                # Legacy handling for list results
                 if isinstance(result, list) and len(result) > 0:
                     if hasattr(result[0], "text"):
                         return json.loads(result[0].text)
