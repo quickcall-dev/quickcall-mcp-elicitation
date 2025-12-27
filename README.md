@@ -34,37 +34,37 @@ This demo showcases a **Meeting Scheduler** that collects:
 ## Architecture
 
 ```mermaid
-flowchart TB
-    subgraph Frontend["Frontend (Next.js)"]
-        UI[Chat Interface]
-        SSE[SSE Event Handler]
-        ElicitUI[Elicitation UI]
+flowchart LR
+    subgraph Client["Client"]
+        User[User]
+        Frontend[Frontend]
     end
 
-    subgraph Backend["Backend (FastAPI)"]
-        Chat[Chat Endpoint]
+    subgraph Backend["Backend"]
+        API[Chat API]
         ElicitSvc[Elicitation Service]
-        OpenAI[OpenAI Client]
     end
 
-    subgraph MCP["MCP Server (FastMCP)"]
-        Tool[schedule_meeting Tool]
-        Elicit[ctx.elicit]
+    subgraph AI["AI Layer"]
+        OpenAI[OpenAI]
     end
 
-    UI -->|POST /chat| Chat
-    Chat -->|Stream| SSE
-    Chat -->|Tool Call| OpenAI
-    OpenAI -->|Execute Tool| Tool
-    Tool -->|Request Input| Elicit
-    Elicit -->|SSE Event| ElicitSvc
-    ElicitSvc -->|elicitation_request| SSE
-    SSE -->|Render| ElicitUI
-    ElicitUI -->|POST /elicitation/respond| ElicitSvc
-    ElicitSvc -->|Resume| Elicit
+    subgraph MCP["MCP Layer"]
+        MCPServer[MCP Server]
+    end
+
+    User -->|"Schedule a meeting"| Frontend
+    Frontend -->|POST /chat| API
+    API -->|Process with tools| OpenAI
+    OpenAI -->|Tool call| API
+    API -->|Execute tool| MCPServer
+    MCPServer -->|ctx.elicit| ElicitSvc
+    ElicitSvc -->|SSE event| Frontend
+    Frontend -->|Show input UI| User
+    User -->|Provide input| Frontend
+    Frontend -->|POST /elicitation/respond| ElicitSvc
+    ElicitSvc -->|Resume| MCPServer
 ```
-
-### Component Overview
 
 | Component | Technology | Port | Description |
 |-----------|-----------|------|-------------|
@@ -72,44 +72,78 @@ flowchart TB
 | **Backend** | FastAPI | 8000 | Orchestrates OpenAI + MCP, manages elicitation state |
 | **MCP Server** | FastMCP | 8001 | Hosts tools with elicitation support |
 
-### Data Flow
+### Elicitation Flow
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant Frontend
-    participant Backend
-    participant OpenAI
-    participant MCP
+    box Client
+        participant User
+        participant Frontend
+    end
+
+    box Backend
+        participant API as Chat API
+        participant Elicit as Elicitation Service
+    end
+
+    box AI Layer
+        participant OpenAI
+    end
+
+    box MCP Layer
+        participant MCP as MCP Server
+    end
 
     User->>Frontend: "Schedule a meeting"
-    Frontend->>Backend: POST /chat
-    Backend->>OpenAI: Chat completion with tools
-    OpenAI->>Backend: Tool call: schedule_meeting
-    Backend->>MCP: Execute tool
+    Frontend->>API: POST /chat
+    API->>OpenAI: Chat completion with tools
+    OpenAI->>API: Tool call: schedule_meeting
+    API->>MCP: Execute tool
 
-    MCP->>MCP: ctx.elicit("What's the title?")
-    MCP-->>Backend: Elicitation request
-    Backend-->>Frontend: SSE: elicitation_request
-    Frontend->>User: Show text input
-    User->>Frontend: "Weekly Standup"
-    Frontend->>Backend: POST /elicitation/respond
-    Backend->>MCP: Resume with response
+    rect rgb(255, 245, 200)
+        Note over MCP,User: Elicitation 1: Get meeting title
+        MCP->>Elicit: ctx.elicit("What's the title?")
+        Elicit-->>Frontend: SSE: elicitation_request
+        Frontend->>User: Show text input
+        User->>Frontend: "Weekly Standup"
+        Frontend->>Elicit: POST /elicitation/respond
+        Elicit->>MCP: Resume with value
+    end
 
-    MCP->>MCP: ctx.elicit("Who should attend?")
-    MCP-->>Backend: Elicitation request
-    Backend-->>Frontend: SSE: elicitation_request
-    Frontend->>User: Show multi-select
-    User->>Frontend: Select participants
-    Frontend->>Backend: POST /elicitation/respond
-    Backend->>MCP: Resume with response
+    rect rgb(255, 245, 200)
+        Note over MCP,User: Elicitation 2: Select participants
+        MCP->>Elicit: ctx.elicit("Who should attend?")
+        Elicit-->>Frontend: SSE: elicitation_request
+        Frontend->>User: Show multi-select
+        User->>Frontend: Select: Alice, Bob
+        Frontend->>Elicit: POST /elicitation/respond
+        Elicit->>MCP: Resume with value
+    end
 
-    Note over MCP: Continue for duration & time...
+    rect rgb(255, 245, 200)
+        Note over MCP,User: Elicitation 3: Choose duration
+        MCP->>Elicit: ctx.elicit("How long?")
+        Elicit-->>Frontend: SSE: elicitation_request
+        Frontend->>User: Show options
+        User->>Frontend: Select: 30 minutes
+        Frontend->>Elicit: POST /elicitation/respond
+        Elicit->>MCP: Resume with value
+    end
 
-    MCP->>Backend: Tool result
-    Backend->>OpenAI: Tool response
-    OpenAI->>Backend: Final message
-    Backend-->>Frontend: SSE: completion
+    rect rgb(255, 245, 200)
+        Note over MCP,User: Elicitation 4: Pick time slot
+        MCP->>Elicit: ctx.elicit("When?")
+        Elicit-->>Frontend: SSE: elicitation_request
+        Frontend->>User: Show time slots
+        User->>Frontend: Select: Monday 10:00 AM
+        Frontend->>Elicit: POST /elicitation/respond
+        Elicit->>MCP: Resume with value
+    end
+
+    MCP->>API: Tool result: Meeting scheduled
+    API->>OpenAI: Tool response
+    OpenAI->>API: Final message
+    API-->>Frontend: SSE: completion
     Frontend->>User: "Meeting scheduled!"
 ```
 
@@ -139,7 +173,8 @@ Open [http://localhost:3000](http://localhost:3000) and try:
 - "I need to set up a team sync"
 - "Book a call with the team"
 
-### Run Locally (Development)
+<details>
+<summary><strong>Run Locally (Development)</strong></summary>
 
 ```bash
 # Terminal 1: MCP Server
@@ -158,9 +193,12 @@ npm install
 npm run dev
 ```
 
+</details>
+
 ## How It Works
 
-### 1. MCP Tool with Elicitation
+<details>
+<summary><strong>1. MCP Tool with Elicitation</strong></summary>
 
 The `schedule_meeting` tool uses `ctx.elicit()` to gather missing information:
 
@@ -193,7 +231,10 @@ async def schedule_meeting(
     # ... continue for duration and time
 ```
 
-### 2. Backend Elicitation Handler
+</details>
+
+<details>
+<summary><strong>2. Backend Elicitation Handler</strong></summary>
 
 The backend creates an SSE-based handler for each chat session:
 
@@ -215,7 +256,10 @@ async def handler(message, response_type, params, context):
     return response
 ```
 
-### 3. Frontend Elicitation UI
+</details>
+
+<details>
+<summary><strong>3. Frontend Elicitation UI</strong></summary>
 
 The frontend renders appropriate input based on the elicitation type:
 
@@ -238,6 +282,8 @@ The frontend renders appropriate input based on the elicitation type:
   />
 )}
 ```
+
+</details>
 
 ## Project Structure
 
@@ -265,7 +311,8 @@ mcp-elicitation/
 
 ## Extending the Demo
 
-### Add New Elicitation Types
+<details>
+<summary><strong>Add New Elicitation Types</strong></summary>
 
 The MCP server supports various `response_type` patterns:
 
@@ -283,7 +330,10 @@ await ctx.elicit("How many?", response_type=int)
 await ctx.elicit("Confirm?", response_type=bool)
 ```
 
-### Add New Tools
+</details>
+
+<details>
+<summary><strong>Add New Tools</strong></summary>
 
 Create a new tool in `mcp-server/main.py`:
 
@@ -302,6 +352,8 @@ async def my_tool(param: Optional[str] = None) -> dict:
     return {"result": f"Processed: {param}"}
 ```
 
+</details>
+
 ## Learn More
 
 - [MCP Elicitation Specification](https://modelcontextprotocol.io/docs/concepts/elicitation)
@@ -311,5 +363,5 @@ async def my_tool(param: Optional[str] = None) -> dict:
 ---
 
 <p align="center">
-  Built with love by <a href="https://quickcall.dev">QuickCall</a>
+  Built with ❤️ by <a href="https://quickcall.dev">QuickCall</a>
 </p>
