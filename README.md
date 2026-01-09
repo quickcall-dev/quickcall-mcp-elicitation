@@ -73,8 +73,8 @@ flowchart LR
 | Component | Technology | Port | Description |
 |-----------|-----------|------|-------------|
 | **Frontend** | Next.js 15 | 3000 | Chat UI with elicitation rendering |
-| **Backend** | FastAPI | 8000 | Orchestrates OpenAI + MCP, manages elicitation state |
-| **MCP Server** | FastMCP | 8001 | Hosts tools with elicitation support |
+| **Backend** | FastAPI | 8002 | Orchestrates OpenAI + MCP, manages elicitation state |
+| **MCP Server** | FastMCP | 8003 | Hosts tools with elicitation support |
 
 ### Elicitation Flow
 
@@ -176,7 +176,7 @@ python main.py
 # Terminal 2: Backend
 cd backend
 uv pip install -e .
-OPENAI_API_KEY=your-key MCP_SERVER_URL=http://localhost:8001/mcp python main.py
+OPENAI_API_KEY=your-key MCP_SERVER_URL=http://localhost:8003/mcp python main.py
 
 # Terminal 3: Frontend
 cd frontend
@@ -298,7 +298,7 @@ mcp-elicitation/
 |----------|---------|-------------|
 | `OPENAI_API_KEY` | - | Required. Your OpenAI API key |
 | `OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model to use |
-| `MCP_SERVER_URL` | `http://localhost:8001/mcp` | MCP server endpoint |
+| `MCP_SERVER_URL` | `http://localhost:8003/mcp` | MCP server endpoint |
 
 ## Extending the Demo
 

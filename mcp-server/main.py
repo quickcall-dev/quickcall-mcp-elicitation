@@ -140,19 +140,21 @@ async def schedule_meeting(
         participant_names = [p["name"] for p in AVAILABLE_PARTICIPANTS]
         result = await ctx.elicit(
             message="Who should attend this meeting?",
-            response_type=participant_names,
+            # Use str type to allow comma-separated multi-select from frontend
+            response_type=str,
         )
         if result.action == "cancel":
             return create_cancelled_result(title=title)
         # Handle dict or direct response
         data = result.data
         if isinstance(data, dict):
-            selected = data.get("value") or data.get("participants") or []
+            selected = data.get("value") or data.get("participants") or ""
         else:
-            selected = data
-        # Wrap single selection in list
+            selected = data if data else ""
+        # Parse comma-separated string into list
         if isinstance(selected, str):
-            participants = [selected]
+            # Split by comma and strip whitespace
+            participants = [name.strip() for name in selected.split(",") if name.strip()]
         else:
             participants = list(selected) if selected else []
 
@@ -220,6 +222,6 @@ async def list_participants() -> List[dict]:
 
 if __name__ == "__main__":
     host = os.getenv("MCP_HOST", "0.0.0.0")
-    port = int(os.getenv("MCP_PORT", "8001"))
+    port = int(os.getenv("MCP_PORT", "8003"))
 
     mcp.run(transport="streamable-http", host=host, port=port)

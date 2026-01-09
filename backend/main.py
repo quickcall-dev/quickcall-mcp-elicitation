@@ -135,7 +135,7 @@ class MCPClient:
     """
 
     def __init__(self):
-        url = os.getenv("MCP_SERVER_URL", "http://localhost:8001/mcp")
+        url = os.getenv("MCP_SERVER_URL", "http://localhost:8003/mcp")
         self.mcp_server_url = url.rstrip("/")
         self._tools_cache: List = []
 
@@ -209,6 +209,11 @@ class MCPClient:
                     schema = raw
 
             options = extract_options_from_schema(schema)
+
+            # Inject participant options for multi-select (str type doesn't include enum)
+            if not options and "attend" in message.lower():
+                options = ["Alice Chen", "Bob Smith", "Carol White", "David Brown"]
+
             logger.info(f"[ELICIT] Extracted options: {options}")
 
             logger.info(f"[ELICIT] Sending SSE callback for: {elicitation_id}")
@@ -236,10 +241,10 @@ class MCPClient:
                 return response_data
             except asyncio.TimeoutError:
                 logger.warning(f"Elicitation {elicitation_id} timed out")
-                return {"action": "cancel"}
+                return {"action": "cancel", "value": None}
             except asyncio.CancelledError:
                 logger.warning(f"Elicitation {elicitation_id} cancelled")
-                return {"action": "cancel"}
+                return {"action": "cancel", "value": None}
 
         return handler
 
@@ -584,4 +589,4 @@ async def list_tools():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8002)
