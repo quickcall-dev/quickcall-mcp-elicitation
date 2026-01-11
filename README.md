@@ -33,6 +33,10 @@ This app showcases a **Meeting Scheduler** that collects:
 - Duration (single select from options)
 - Preferred time slot (single select from available slots)
 
+<p align="center">
+  <img src="assets/quickcall-mcp-elicitation-demo.gif" alt="MCP Elicitation Demo" width="700">
+</p>
+
 ## Architecture
 
 ```mermaid
